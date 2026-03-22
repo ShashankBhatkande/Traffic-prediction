@@ -14,9 +14,9 @@ class SupervisedForecastTask(pl.LightningModule):
         model: nn.Module,
         regressor="linear",
         loss="mse",
-        pre_len: int = 3,
-        learning_rate: float = 1e-3,
-        weight_decay: float = 1.5e-3,
+        pre_len: int = 1,
+        learning_rate: float = 0.0048,
+        weight_decay: float = 7.5e-05,
         feat_max_val: float = 1.0,
         **kwargs
     ):
@@ -106,7 +106,7 @@ class SupervisedForecastTask(pl.LightningModule):
     @staticmethod
     def add_task_specific_arguments(parent_parser):
         parser = argparse.ArgumentParser(parents=[parent_parser], add_help=False)
-        parser.add_argument("--learning_rate", "--lr", type=float, default=1e-3)
-        parser.add_argument("--weight_decay", "--wd", type=float, default=1.5e-3)
+        parser.add_argument("--learning_rate", "--lr", type=float, default=0.0048)
+        parser.add_argument("--weight_decay", "--wd", type=float, default=7.5e-05)
         parser.add_argument("--loss", type=str, default="mse")
         return parser

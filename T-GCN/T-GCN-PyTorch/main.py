@@ -6,8 +6,10 @@ import models
 import tasks
 import utils.callbacks
 import utils.data
-import utils.email
 import utils.logging
+from pytorch_lightning.callbacks import EarlyStopping
+
+early_stop = EarlyStopping(monitor="val_loss", patience=5)
 
 
 DATA_PATHS = {
@@ -36,11 +38,14 @@ def get_task(args, model, dm):
 
 def get_callbacks(args):
     checkpoint_callback = pl.callbacks.ModelCheckpoint(monitor="train_loss")
-    plot_validation_predictions_callback = utils.callbacks.PlotValidationPredictionsCallback(monitor="train_loss")
-    callbacks = [
-        checkpoint_callback,
-        plot_validation_predictions_callback,
-    ]
+
+    callbacks = [checkpoint_callback, early_stop]
+
+    # 🔥 ONLY add plotting if NOT using Optuna
+    if not hasattr(args, "optuna") or args.optuna is False:
+        plot_callback = utils.callbacks.PlotValidationPredictionsCallback(monitor="train_loss")
+        callbacks.append(plot_callback)
+
     return callbacks
 
 
@@ -51,7 +56,12 @@ def main_supervised(args):
     model = get_model(args, dm)
     task = get_task(args, model, dm)
     callbacks = get_callbacks(args)
-    trainer = pl.Trainer.from_argparse_args(args, callbacks=callbacks)
+    trainer = pl.Trainer.from_argparse_args(
+        args,
+        callbacks=callbacks,
+        accelerator="gpu",
+        devices=1
+    )
     trainer.fit(task, dm)
     results = trainer.validate(model=task, datamodule=dm)
     return results[0]
@@ -75,7 +85,7 @@ if __name__ == "__main__":
         type=str,
         help="The name of the model for spatiotemporal prediction",
         choices=("GCN", "GRU", "TGCN"),
-        default="GCN",
+        default="TGCN",
     )
     parser.add_argument(
         "--settings",
@@ -85,7 +95,6 @@ if __name__ == "__main__":
         default="supervised",
     )
     parser.add_argument("--log_path", type=str, default=None, help="Path to the output console log file")
-    parser.add_argument("--send_email", "--email", action="store_true", help="Send email when finished")
 
     temp_args, _ = parser.parse_known_args()
 
@@ -102,12 +111,3 @@ if __name__ == "__main__":
         results = main(args)
     except:  # noqa: E722
         traceback.print_exc()
-        if args.send_email:
-            tb = traceback.format_exc()
-            subject = "[Email Bot][❌] " + "-".join([args.settings, args.model_name, args.data])
-            utils.email.send_email(tb, subject)
-        exit(-1)
-
-    if args.send_email:
-        subject = "[Email Bot][✅] " + "-".join([args.settings, args.model_name, args.data])
-        utils.email.send_experiment_results_email(args, results, subject=subject)
