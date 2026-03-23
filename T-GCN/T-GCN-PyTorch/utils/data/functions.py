@@ -30,8 +30,9 @@ def generate_dataset(
     if time_len is None:
         time_len = data.shape[0]
     if normalize:
-        max_val = np.max(data)
-        data = data / max_val
+        mean = np.mean(data)
+        std = np.std(data) + 1e-8
+        data = (data - mean) / std
     train_size = int(time_len * split_ratio)
     train_data = data[:train_size]
     test_data = data[train_size:time_len]

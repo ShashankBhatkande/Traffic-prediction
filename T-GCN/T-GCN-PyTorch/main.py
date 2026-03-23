@@ -30,14 +30,18 @@ def get_model(args, dm):
 
 
 def get_task(args, model, dm):
-    task = getattr(tasks, args.settings.capitalize() + "ForecastTask")(
-        model=model, feat_max_val=dm.feat_max_val, **vars(args)
+   task = getattr(tasks, args.settings.capitalize() + "ForecastTask")(
+        model=model,
+        feat_max_val=dm.feat_max_val,
+        mean=dm.mean,
+        std=dm.std,
+        normalize_type="zscore",
+        **vars(args)
     )
-    return task
-
+   return task
 
 def get_callbacks(args):
-    checkpoint_callback = pl.callbacks.ModelCheckpoint(monitor="train_loss")
+    checkpoint_callback = pl.callbacks.ModelCheckpoint(monitor="val_loss")
 
     callbacks = [checkpoint_callback, early_stop]
 
@@ -53,14 +57,15 @@ def main_supervised(args):
     dm = utils.data.SpatioTemporalCSVDataModule(
         feat_path=DATA_PATHS[args.data]["feat"], adj_path=DATA_PATHS[args.data]["adj"], **vars(args)
     )
+    dm.setup(stage="fit")
     model = get_model(args, dm)
     task = get_task(args, model, dm)
     callbacks = get_callbacks(args)
     trainer = pl.Trainer.from_argparse_args(
         args,
         callbacks=callbacks,
-        accelerator="gpu",
-        devices=1
+        accelerator=args.accelerator,
+        devices=args.devices
     )
     trainer.fit(task, dm)
     results = trainer.validate(model=task, datamodule=dm)
