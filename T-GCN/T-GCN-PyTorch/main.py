@@ -25,7 +25,16 @@ def get_model(args, dm):
     if args.model_name == "GRU":
         model = models.GRU(input_dim=dm.adj.shape[0], hidden_dim=args.hidden_dim)
     if args.model_name == "TGCN":
-        model = models.TGCN(adj=dm.adj, hidden_dim=args.hidden_dim)
+        model = models.TGCN(
+            adj=dm.adj,
+            hidden_dim=args.hidden_dim,
+            num_layers=getattr(args, "num_layers", 2),
+            dropout=getattr(args, "dropout", 0.2),
+            use_layer_norm=getattr(args, "use_layer_norm", True),
+            use_attention=getattr(args, "use_attention", True),
+            rnn_type=getattr(args, "rnn_type", "gru"),
+            bidirectional=getattr(args, "bidirectional", False),
+        )
     return model
 
 
